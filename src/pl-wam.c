@@ -1718,10 +1718,12 @@ PL_open_query(Module ctx, int flags, Procedure proc, term_t args)
 
 					/* publish environment */
   PL_LOCK(L_AGC);			/* see restore_after_query() */
+  PL_LOCK(L_CGC);
   LD->choicepoints  = &qf->choice;
   environment_frame = fr;
   qf->parent = LD->query;
   LD->query = qf;
+  PL_UNLOCK(L_CGC);
   PL_UNLOCK(L_AGC);
 
   DEBUG(2, Sdprintf("QID=%d\n", QidFromQuery(qf)));
@@ -1762,9 +1764,11 @@ restore_after_query(QueryFrame qf)
   DiscardMark(qf->choice.mark);
 
   PL_LOCK(L_AGC);		/* see Tests/thread/test_agc_callback.pl */
+  PL_LOCK(L_CGC);
   LD->query         = qf->parent;
   LD->choicepoints  = qf->saved_bfr;
   environment_frame = qf->saved_environment;
+  PL_UNLOCK(L_CGC);
   PL_UNLOCK(L_AGC);
   aTop		    = qf->aSave;
   lTop		    = qf->saved_ltop;
