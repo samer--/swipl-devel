@@ -203,6 +203,11 @@ list_debug_topics :-
 %   time(Format),  where  Format  is    a  format specification  for
 %   format_time/3 (default is =|%T.%3f|=).  Initially, debug/3 shows
 %   only thread information.
+%	 Specify additional context for debug messages.   What  is one of
+%	 +Context or -Context,  and Context is  one of =thread=, =topic=,
+%	 =time= or time(Format),  where  Format is a format specification
+%	 for  format_time/3 (default is =|%T.%3f|=).  Initially,  debug/3 
+%	 shows only thread information.
 
 debug_message_context(+Topic) :-
     !,
@@ -213,12 +218,14 @@ debug_message_context(-Topic) :-
     !,
     valid_topic(Topic, Del, _),
     retractall(debug_context(Del)).
+
 debug_message_context(Term) :-
     type_error(debug_message_context, Term).
 
 valid_topic(thread, thread, thread) :- !.
 valid_topic(time, time(_), time('%T.%3f')) :- !.
 valid_topic(time(Format), time(_), time(Format)) :- !.
+valid_topic(topic, topic, topic) :- !.
 valid_topic(X, _, _) :-
     domain_error(debug_message_context, X).
 
@@ -263,7 +270,7 @@ print_debug(Topic, _To, Format, Args) :-
     !.
 print_debug(_, [], _, _) :- !.
 print_debug(Topic, To, Format, Args) :-
-    phrase('$messages':translate_message(debug(Format, Args)), Lines),
+    phrase('$messages':translate_message(debug(Topic, Format, Args)), Lines),
     (   member(T, To),
         debug_output(T, Stream),
         with_output_to(
@@ -392,10 +399,11 @@ system:goal_expansion(assume(_), true) :-
 
 prolog:message(assertion_failed(_, G)) -->
     [ 'Assertion failed: ~q'-[G] ].
-prolog:message(debug(Fmt, Args)) -->
-    show_thread_context,
-    show_time_context,
-    [ Fmt-Args ].
+prolog:message(debug(Topic, Fmt, Args)) -->
+	show_thread_context,
+	show_time_context,
+   show_topic_context(Topic),
+	[ Fmt-Args ].
 prolog:message(debug_no_topic(Topic)) -->
     [ '~q: no matching debug topic (yet)'-[Topic] ].
 
@@ -427,6 +435,12 @@ show_time_context -->
     [ '[~w] '-[S] ].
 show_time_context -->
     [].
+
+show_topic_context(Topic) -->
+	{ debug_context(topic) },
+	[ '~w | '-[Topic] ].
+show_topic_context(_) -->
+	[].
 
                  /*******************************
                  *             HOOKS            *
