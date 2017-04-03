@@ -351,12 +351,9 @@ enum_cases(Key, Val, _, _, _, R) :-
 %   value is replaced by Value. See also rb_insert_new/4.
 
 rb_insert(t(Nil,Tree0),Key,Val,t(Nil,Tree)) :-
-    insert(Tree0,Key,Val,Nil,Tree).
-
-
-insert(Tree0,Key,Val,Nil,Tree) :-
-    insert2(Tree0,Key,Val,TreeI,_),
+    insert2(Tree0,Key,Val,Nil,TreeI,_),
     fix_root(TreeI,Tree).
+
 
 %
 % Cormen et al present the algorithm as
@@ -414,9 +411,6 @@ insert2(black(L,K0,V0,R), K, V, Nil, NT, Flag) :-
 %   new red-black tree NewTree. Fails if Key is a key in Tree.
 
 rb_insert_new(t(Nil,Tree0),Key,Val,t(Nil,Tree)) :-
-    insert_new(Tree0,Key,Val,Tree).
-
-insert_new(Tree0,Key,Val,Tree) :-
     insert_new_2(Tree0,Key,Val,TreeI,_),
     fix_root(TreeI,Tree).
 
