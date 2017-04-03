@@ -351,7 +351,7 @@ enum_cases(Key, Val, _, _, _, R) :-
 %   value is replaced by Value. See also rb_insert_new/4.
 
 rb_insert(t(Nil,Tree0),Key,Val,t(Nil,Tree)) :-
-    insert2(Tree0,Key,Val,Nil,TreeI,_),
+    insert(Tree0,Key,Val,Nil,TreeI,_),
     fix_root(TreeI,Tree).
 
 
@@ -378,28 +378,28 @@ rb_insert(t(Nil,Tree0),Key,Val,t(Nil,Tree)) :-
 %
 % actual insertion
 %
-insert2(black('',_,_,''), K, V, T, Status) :-
+insert(black('',_,_,''), K, V, T, Status) :-
     !,
     T = red(Nil,K,V,Nil),
     Status = not_done.
-insert2(red(L,K0,V0,R), K, V, NT, Flag) :-
+insert(red(L,K0,V0,R), K, V, NT, Flag) :-
     (   K @< K0
     ->  NT = red(NL,K0,V0,R),
-        insert2(L, K, V, NL, Flag)
+        insert(L, K, V, NL, Flag)
     ;   K == K0
     ->  NT = red(L,K0,V,R),
         Flag = done
     ;   NT = red(L,K0,V0,NR),
-        insert2(R, K, V, NR, Flag)
+        insert(R, K, V, NR, Flag)
     ).
-insert2(black(L,K0,V0,R), K, V, Nil, NT, Flag) :-
+insert(black(L,K0,V0,R), K, V, Nil, NT, Flag) :-
     (   K @< K0
-    ->  insert2(L, K, V, IL, Flag0),
+    ->  insert(L, K, V, IL, Flag0),
         fix_left(Flag0, black(IL,K0,V0,R), NT, Flag)
     ;   K == K0
     ->  NT = black(L,K0,V,R),
         Flag = done
-    ;   insert2(R, K, V, IR, Flag0),
+    ;   insert(R, K, V, IR, Flag0),
         fix_right(Flag0, black(L,K0,V0,IR), NT, Flag)
     ).
 
@@ -411,32 +411,32 @@ insert2(black(L,K0,V0,R), K, V, Nil, NT, Flag) :-
 %   new red-black tree NewTree. Fails if Key is a key in Tree.
 
 rb_insert_new(t(Nil,Tree0),Key,Val,t(Nil,Tree)) :-
-    insert_new_2(Tree0,Key,Val,TreeI,_),
+    insert_new(Tree0,Key,Val,TreeI,_),
     fix_root(TreeI,Tree).
 
 %
-% actual insertion, copied from insert2
+% actual insertion, copied from insert
 %
-insert_new_2(black('',_,_,''), K, V, T, Status) :-
+insert_new(black('',_,_,''), K, V, T, Status) :-
     !,
     T = red(Nil,K,V,Nil),
     Status = not_done.
-insert_new_2(red(L,K0,V0,R), K, V, NT, Flag) :-
+insert_new(red(L,K0,V0,R), K, V, NT, Flag) :-
     (   K @< K0
     ->  NT = red(NL,K0,V0,R),
-        insert_new_2(L, K, V, NL, Flag)
+        insert_new(L, K, V, NL, Flag)
     ;   K == K0
     ->  fail
     ;   NT = red(L,K0,V0,NR),
-        insert_new_2(R, K, V, NR, Flag)
+        insert_new(R, K, V, NR, Flag)
     ).
-insert_new_2(black(L,K0,V0,R), K, V, NT, Flag) :-
+insert_new(black(L,K0,V0,R), K, V, NT, Flag) :-
     (   K @< K0
-    ->  insert_new_2(L, K, V, IL, Flag0),
+    ->  insert_new(L, K, V, IL, Flag0),
         fix_left(Flag0, black(IL,K0,V0,R), NT, Flag)
     ;   K == K0
     ->  fail
-    ;   insert_new_2(R, K, V, IR, Flag0),
+    ;   insert_new(R, K, V, IR, Flag0),
         fix_right(Flag0, black(L,K0,V0,IR), NT, Flag)
     ).
 
