@@ -293,7 +293,7 @@ enum_cases(Key, Val, _, _, _, R) :-
 :- meta_predicate rb_apply_or_create(+,+,2,1,-).
 
 rb_apply_or_create(t(Nil,Tree0),Key,Change,Create,t(Nil,Tree)) :-
-    apply_or_create(Tree0,Key,Change,Create,TreeI,_),
+    apply_or_create(Tree0,Key,Change-Create,TreeI,_),
     % We don't use parent nodes, so we may have to fix the root.
     fix_root(TreeI,Tree).
 
@@ -318,33 +318,29 @@ rb_apply_or_create(t(Nil,Tree0),Key,Change,Create,t(Nil,Tree)) :-
 % update/4, and update/5 by taking two predicates to handle the two
 % cases where the key is or is not present.
 
-apply_or_create(black('',_,_,''), K, _, Create, T, Status) :-
+apply_or_create(black('',_,_,''), K, _-Create, T, Status) :-
     !,
     call(Create,V),
     T = red(Nil,K,V,Nil),
     Status = not_done.
-apply_or_create(red(L,K0,V0,R), K, Change, Create, NT, Flag) :-
-    (   K @< K0
-    ->  NT = red(NL,K0,V0,R),
-        apply_or_create(L, K, Change, Create, NL, Flag)
-    ;   K == K0
-    ->  NT = red(L,K0,V1,R), 
-        call(Change,V0,V1),
-        Flag = done
-    ;   NT = red(L,K0,V0,NR),
-        apply_or_create(R, K, Change, Create, NR, Flag)
-    ).
-apply_or_create(black(L,K0,V0,R), K, Change, Create, NT, Flag) :-
-    (   K @< K0
-    ->  apply_or_create(L, K, Change, Create, IL, Flag0),
-        fix_left(Flag0, black(IL,K0,V0,R), NT, Flag)
-    ;   K == K0
-    ->  NT = black(L,K0,V0,V1),
-        call(Change,V0,V1),
-        Flag = done
-    ;   apply_or_create(R, K, Change, Create, IR, Flag0),
-        fix_right(Flag0, black(L,K0,V0,IR), NT, Flag)
-    ).
+apply_or_create(T1, K, Preds, T2, Flag) :-
+    tree_key(T1, K0),
+    compare(Cmp, K, K0),
+    cmp_aoc(Cmp, T1, K, Preds, T2, Flag).
+
+% these are all green cuts
+cmp_aoc(=, red(L,K0,V0,R),   _, Change-_, red(L,K0,V1,R),   done) :- !, call(Change,V0,V1).
+cmp_aoc(=, black(L,K0,V0,R), _, Change-_, black(L,K0,V1,R), done) :- !, call(Change,V0,V1).
+cmp_aoc(<, red(L,K0,V0,R),   K, Preds, red(NL,K0,V0,R), Flag) :- !,
+   apply_or_create(L, K, Preds, NL, Flag).
+cmp_aoc(<, black(L,K0,V0,R), K, Preds, black(NL,K0,V0,R), Flag) :- !,
+   apply_or_create(L, K, Preds, IL, Flag0),
+   fix_left(Flag0, black(IL,K0,V0,R), NT, Flag).
+cmp_aoc(>, red(L,K0,V0,R),   K, Preds, red(L,K0,V0,NR), Flag) :- !,
+   apply_or_create(R, K, Preds, NR, Flag).
+cmp_aoc(>, black(L,K0,V0,R), K, Preds, black(L,K0,V0,NR), Flag) :- !,
+   apply_or_create(R, K, Preds, IR, Flag0),
+   fix_right(Flag0, black(L,K0,V0,IR), NT, Flag).
 
 
 %!  rb_insert(+Tree, +Key, ?Value, -NewTree) is det.
