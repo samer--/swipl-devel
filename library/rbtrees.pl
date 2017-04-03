@@ -328,6 +328,9 @@ apply_or_create(T1, K, Preds, T2, Flag) :-
     compare(Cmp, K, K0),
     cmp_aoc(Cmp, T1, K, Preds, T2, Flag).
 
+tree_key(red(_,K,_,_), K).
+tree_key(black(_,K,_,_), K).
+
 % these are all green cuts
 cmp_aoc(=, red(L,K0,V0,R),   _, Change-_, red(L,K0,V1,R),   done) :- !, call(Change,V0,V1).
 cmp_aoc(=, black(L,K0,V0,R), _, Change-_, black(L,K0,V1,R), done) :- !, call(Change,V0,V1).
