@@ -236,35 +236,12 @@ previous(=, _, _, _, K, Val, Tree, Candidate) :-
 %   Tree NewTree is tree Tree, but with   value  for Key associated with
 %   NewVal. Fails if it cannot find Key in Tree.
 
-rb_update(t(Nil,OldTree), Key, OldVal, Val, t(Nil,NewTree)) :-
-    update(OldTree, Key, OldVal, Val, NewTree).
+rb_update(T1, Key, NewVal, T2) :- 
+   rb_apply(T1, Key, trans(_,NewVal), T2).
 
-rb_update(t(Nil,OldTree), Key, Val, t(Nil,NewTree)) :-
-    update(OldTree, Key, _, Val, NewTree).
+rb_update(T1, Key, OldVal, NewVal, T2) :- 
+   rb_apply(T1, Key, trans(OldVal,NewVal), T2).
 
-update(black(Left,Key0,Val0,Right), Key, OldVal, Val, NewTree) :-
-    Left \= [],
-    compare(Cmp,Key0,Key),
-    (   Cmp == (=)
-    ->  OldVal = Val0,
-        NewTree = black(Left,Key0,Val,Right)
-    ;   Cmp == (>)
-    ->  NewTree = black(NewLeft,Key0,Val0,Right),
-        update(Left, Key, OldVal, Val, NewLeft)
-    ;   NewTree = black(Left,Key0,Val0,NewRight),
-        update(Right, Key, OldVal, Val, NewRight)
-    ).
-update(red(Left,Key0,Val0,Right), Key, OldVal, Val, NewTree) :-
-    compare(Cmp,Key0,Key),
-    (   Cmp == (=)
-    ->  OldVal = Val0,
-        NewTree = red(Left,Key0,Val,Right)
-    ;   Cmp == (>)
-    ->  NewTree = red(NewLeft,Key0,Val0,Right),
-        update(Left, Key, OldVal, Val, NewLeft)
-    ;   NewTree = red(Left,Key0,Val0,NewRight),
-        update(Right, Key, OldVal, Val, NewRight)
-    ).
 
 %!  rb_apply(+Tree, +Key, :G, -NewTree) is semidet.
 %
@@ -275,41 +252,8 @@ update(red(Left,Key0,Val0,Right), Key, OldVal, Val, NewTree) :-
 
 :- meta_predicate rb_apply(+,+,2,-),
 
-rb_apply(t(Nil,OldTree), Key, Goal, t(Nil,NewTree)) :-
-    apply(OldTree, Key, Goal, NewTree).
-
-%apply(black('',_,_,''), _, _, _) :- !, fail.
-apply(black(Left,Key0,Val0,Right), Key, Goal,
-      black(NewLeft,Key0,Val,NewRight)) :-
-    Left \= [],
-    compare(Cmp,Key0,Key),
-    (   Cmp == (=)
-    ->  NewLeft = Left,
-        NewRight = Right,
-        call(Goal,Val0,Val)
-    ;   Cmp == (>)
-    ->  NewRight = Right,
-        Val = Val0,
-        apply(Left, Key, Goal, NewLeft)
-    ;   NewLeft = Left,
-        Val = Val0,
-        apply(Right, Key, Goal, NewRight)
-    ).
-apply(red(Left,Key0,Val0,Right), Key, Goal,
-      red(NewLeft,Key0,Val,NewRight)) :-
-    compare(Cmp,Key0,Key),
-    (   Cmp == (=)
-    ->  NewLeft = Left,
-        NewRight = Right,
-        call(Goal,Val0,Val)
-    ;   Cmp == (>)
-    ->  NewRight = Right,
-        Val = Val0,
-        apply(Left, Key, Goal, NewLeft)
-    ;   NewLeft = Left,
-        Val = Val0,
-        apply(Right, Key, Goal, NewRight)
-    ).
+rb_apply(T1, Key, Goal, T2) :- 
+   rb_apply_or_create(T1,Key,Goal,fail1,T2).
 
 %!  rb_in(?Key, ?Value, +Tree) is nondet.
 %
@@ -353,6 +297,23 @@ rb_apply_or_create(t(Nil,Tree0),Key,Change,Create,t(Nil,Tree)) :-
     % We don't use parent nodes, so we may have to fix the root.
     fix_root(TreeI,Tree).
 
+%
+% Cormen et al present the algorithm as
+% (1) standard tree insertion;
+% (2) from the viewpoint of the newly inserted node:
+%     partially fix the tree;
+%     move upwards
+% until reaching the root.
+%
+% We do it a little bit different:
+%
+% (1) standard tree insertion;
+% (2) move upwards:
+%      when reaching a black node;
+%        if the tree below may be broken, fix it.
+% We take advantage of Prolog unification
+% to do several operations in a single go.
+%
 % This provides all functionality of apply, insert, insert_new, 
 % update/4, and update/5 by taking two predicates to handle the two
 % cases where the key is or is not present.
@@ -383,103 +344,22 @@ apply_or_create(black(L,K0,V0,R), K, Change, Create, NT, Flag) :-
         fix_right(Flag0, black(L,K0,V0,IR), NT, Flag)
     ).
 
-% We don't use parent nodes, so we may have to fix the root.
 
 %!  rb_insert(+Tree, +Key, ?Value, -NewTree) is det.
 %
 %   Add an element with key Key and Value   to  the tree Tree creating a
 %   new red-black tree NewTree. If Key is  a key in Tree, the associated
 %   value is replaced by Value. See also rb_insert_new/4.
+rb_insert(T1,K,V,T2) :- 
+   rb_apply_or_create(T1,K,trans(_,V),=(V),T2).
 
-rb_insert(t(Nil,Tree0),Key,Val,t(Nil,Tree)) :-
-    insert(Tree0,Key,Val,Nil,TreeI,_),
-    fix_root(TreeI,Tree).
-
-
-%
-% Cormen et al present the algorithm as
-% (1) standard tree insertion;
-% (2) from the viewpoint of the newly inserted node:
-%     partially fix the tree;
-%     move upwards
-% until reaching the root.
-%
-% We do it a little bit different:
-%
-% (1) standard tree insertion;
-% (2) move upwards:
-%      when reaching a black node;
-%        if the tree below may be broken, fix it.
-% We take advantage of Prolog unification
-% to do several operations in a single go.
-%
-
-
-
-%
-% actual insertion
-%
-insert(black('',_,_,''), K, V, T, Status) :-
-    !,
-    T = red(Nil,K,V,Nil),
-    Status = not_done.
-insert(red(L,K0,V0,R), K, V, NT, Flag) :-
-    (   K @< K0
-    ->  NT = red(NL,K0,V0,R),
-        insert(L, K, V, NL, Flag)
-    ;   K == K0
-    ->  NT = red(L,K0,V,R),
-        Flag = done
-    ;   NT = red(L,K0,V0,NR),
-        insert(R, K, V, NR, Flag)
-    ).
-insert(black(L,K0,V0,R), K, V, Nil, NT, Flag) :-
-    (   K @< K0
-    ->  insert(L, K, V, IL, Flag0),
-        fix_left(Flag0, black(IL,K0,V0,R), NT, Flag)
-    ;   K == K0
-    ->  NT = black(L,K0,V,R),
-        Flag = done
-    ;   insert(R, K, V, IR, Flag0),
-        fix_right(Flag0, black(L,K0,V0,IR), NT, Flag)
-    ).
-
-% We don't use parent nodes, so we may have to fix the root.
 
 %!  rb_insert_new(+Tree, +Key, ?Value, -NewTree) is semidet.
 %
 %   Add a new element with key Key and Value to the tree Tree creating a
 %   new red-black tree NewTree. Fails if Key is a key in Tree.
-
-rb_insert_new(t(Nil,Tree0),Key,Val,t(Nil,Tree)) :-
-    insert_new(Tree0,Key,Val,TreeI,_),
-    fix_root(TreeI,Tree).
-
-%
-% actual insertion, copied from insert
-%
-insert_new(black('',_,_,''), K, V, T, Status) :-
-    !,
-    T = red(Nil,K,V,Nil),
-    Status = not_done.
-insert_new(red(L,K0,V0,R), K, V, NT, Flag) :-
-    (   K @< K0
-    ->  NT = red(NL,K0,V0,R),
-        insert_new(L, K, V, NL, Flag)
-    ;   K == K0
-    ->  fail
-    ;   NT = red(L,K0,V0,NR),
-        insert_new(R, K, V, NR, Flag)
-    ).
-insert_new(black(L,K0,V0,R), K, V, NT, Flag) :-
-    (   K @< K0
-    ->  insert_new(L, K, V, IL, Flag0),
-        fix_left(Flag0, black(IL,K0,V0,R), NT, Flag)
-    ;   K == K0
-    ->  fail
-    ;   insert_new(R, K, V, IR, Flag0),
-        fix_right(Flag0, black(L,K0,V0,IR), NT, Flag)
-    ).
+rb_insert_new(T1,K,V,T2) :- 
+   rb_apply_or_create(T1,K,fail2,=(V),T2).
 
 %
 % make sure the root is always black.
@@ -1078,3 +958,8 @@ check_val(K, Min, Max) :-
 check_red_child(black(_,_,_,_)).
 check_red_child(red(_,K,_,_)) :-
     throw(msg("must be red: ~w~n",[K])).
+
+% useful predicates for working with apply_or_create
+trans(X,Y,X,Y).
+fail1(_) :- fail.
+fail2(_,_) :- fail.
