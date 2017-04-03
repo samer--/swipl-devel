@@ -330,6 +330,7 @@ apply_or_create(red(L,K0,V0,R), K, Change, Create, NT, Flag) :-
     ;   K == K0
     ->  NT = red(L,K0,V1,R), 
         call(Change,V0,V1),
+        Flag = done
     ;   NT = red(L,K0,V0,NR),
         apply_or_create(R, K, Change, Create, NR, Flag)
     ).
