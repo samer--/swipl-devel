@@ -340,7 +340,8 @@ apply_or_create(black(L,K0,V0,R), K, Change, Create, NT, Flag) :-
         fix_left(Flag0, black(IL,K0,V0,R), NT, Flag)
     ;   K == K0
     ->  NT = black(L,K0,V0,V1),
-        call(Change,V0,V1)
+        call(Change,V0,V1),
+        Flag = done
     ;   apply_or_create(R, K, Change, Create, IR, Flag0),
         fix_right(Flag0, black(L,K0,V0,IR), NT, Flag)
     ).
