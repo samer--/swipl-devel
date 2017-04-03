@@ -36,6 +36,7 @@
           [ rb_new/1,                   % -Tree
             rb_empty/1,                 % ?Tree
             rb_lookup/3,                % +Key, -Value, +T
+            rb_apply_or_create/5        % +Tree, +Key, :Change, :Create, -NewTree
             rb_update/4,                % +Tree, +Key, +NewVal, -NewTree
             rb_update/5,                % +Tree, +Key, ?OldVal, +NewVal, -NewTree
             rb_apply/4,                 % +Tree, +Key, :G, -NewTree
@@ -341,6 +342,50 @@ enum_cases(Key, Val, _, _, _, R) :-
                  /*******************************
                  *       TREE INSERTION         *
                  *******************************/
+
+%!  rb_apply_or_create(+Tree, +Key, :Change, :Create, -NewTree) is det.
+%
+%   Either update an element if present using binary predicate Change, or use unary
+%   predicate Create to create a new element to insert under the given key. This
+%   can replace two separate calls to rb_insert_new/4 and rb_update/5 and avoids
+%   looking up the Key twice.
+
+:- meta_predicate rb_apply_or_create(+,+,2,1,-).
+
+rb_apply_or_create(t(Nil,Tree0),Key,Change,Create,t(Nil,Tree)) :-
+    apply_or_create(Tree0,Key,Change,Create,TreeI,_),
+    % We don't use parent nodes, so we may have to fix the root.
+    fix_root(TreeI,Tree).
+
+% This provides all functionality of apply, insert, insert_new, 
+% update/4, and update/5 by taking two predicates to handle the two
+% cases where the key is or is not present.
+
+apply_or_create(black('',_,_,''), K, _, Create, T, Status) :-
+    !,
+    call(Create,V),
+    T = red(Nil,K,V,Nil),
+    Status = not_done.
+apply_or_create(red(L,K0,V0,R), K, Change, Create, NT, Flag) :-
+    (   K @< K0
+    ->  NT = red(NL,K0,V0,R),
+        apply_or_create(L, K, Change, Create, NL, Flag)
+    ;   K == K0
+    ->  NT = red(L,K0,V1,R), 
+        call(Change,V0,V1),
+    ;   NT = red(L,K0,V0,NR),
+        apply_or_create(R, K, Change, Create, NR, Flag)
+    ).
+apply_or_create(black(L,K0,V0,R), K, Change, Create, NT, Flag) :-
+    (   K @< K0
+    ->  apply_or_create(L, K, Change, Create, IL, Flag0),
+        fix_left(Flag0, black(IL,K0,V0,R), NT, Flag)
+    ;   K == K0
+    ->  NT = black(L,K0,V0,V1),
+        call(Change,V0,V1)
+    ;   apply_or_create(R, K, Change, Create, IR, Flag0),
+        fix_right(Flag0, black(L,K0,V0,IR), NT, Flag)
+    ).
 
 % We don't use parent nodes, so we may have to fix the root.
 
