@@ -37,6 +37,7 @@
             rb_empty/1,                 % ?Tree
             rb_lookup/3,                % +Key, -Value, +T
             rb_apply_or_create/5        % +Tree, +Key, :Change, :Create, -NewTree
+            rb_update_or_insert/5       % +Tree, +Key, -Action, -NewTree
             rb_update/4,                % +Tree, +Key, +NewVal, -NewTree
             rb_update/5,                % +Tree, +Key, ?OldVal, +NewVal, -NewTree
             rb_apply/4,                 % +Tree, +Key, :G, -NewTree
@@ -254,6 +255,8 @@ rb_update(T1, Key, OldVal, NewVal, T2) :-
 
 rb_apply(T1, Key, Goal, T2) :- 
    rb_apply_or_create(T1,Key,Goal,fail1,T2).
+   % rb_update_or_insert(T1,Key,update(V1,V2),T2),
+   % call(Goal,V1,V2).
 
 %!  rb_in(?Key, ?Value, +Tree) is nondet.
 %
@@ -294,7 +297,6 @@ enum_cases(Key, Val, _, _, _, R) :-
 
 rb_apply_or_create(t(Nil,Tree0),Key,Change,Create,t(Nil,Tree)) :-
     apply_or_create(Tree0,Key,Change-Create,TreeI,_),
-    % We don't use parent nodes, so we may have to fix the root.
     fix_root(TreeI,Tree).
 
 %
@@ -345,6 +347,33 @@ cmp_aoc(>, black(L,K0,V0,R), K, Preds, black(L,K0,V0,NR), Flag) :- !,
    apply_or_create(R, K, Preds, IR, Flag0),
    fix_right(Flag0, black(L,K0,V0,IR), NT, Flag).
 
+% ---
+rb_update_or_insert(t(Nil,Tree0),Key,Action,t(Nil,Tree)) :-
+    update_or_insert(Tree0,Key,Action,TreeI,_),
+    fix_root(TreeI,Tree).
+update_or_insert(black('',_,_,''), K, Action, T, Status) :-
+    !,
+    Action=insert(V),
+    T = red(Nil,K,V,Nil),
+    Status = not_done.
+update_or_insert(T1, K, Action, T2, Flag) :-
+    tree_key(T1, K0),
+    compare(Cmp, K, K0),
+    cmp_uoi(Cmp, T1, K, Action, T2, Flag).
+
+% these are all green cuts
+cmp_uoi(=, red(L,K0,V0,R),   _, update(V0,V1), red(L,K0,V1,R),   done) :- !.
+cmp_uoi(=, black(L,K0,V0,R), _, update(V0,V1), black(L,K0,V1,R), done) :- !.
+cmp_uoi(<, red(L,K0,V0,R),   K, Action, red(NL,K0,V0,R), Flag) :- !,
+   update_or_insert(L, K, Action, NL, Flag).
+cmp_uoi(<, black(L,K0,V0,R), K, Action, black(NL,K0,V0,R), Flag) :- !,
+   update_or_insert(L, K, Action, IL, Flag0),
+   fix_left(Flag0, black(IL,K0,V0,R), NT, Flag).
+cmp_uoi(>, red(L,K0,V0,R),   K, Action, red(L,K0,V0,NR), Flag) :- !,
+   update_or_insert(R, K, Action, NR, Flag).
+cmp_uoi(>, black(L,K0,V0,R), K, Action, black(L,K0,V0,NR), Flag) :- !,
+   update_or_insert(R, K, Action, IR, Flag0),
+   fix_right(Flag0, black(L,K0,V0,IR), NT, Flag).
 
 %!  rb_insert(+Tree, +Key, ?Value, -NewTree) is det.
 %
@@ -360,7 +389,7 @@ rb_insert(T1,K,V,T2) :-
 %   Add a new element with key Key and Value to the tree Tree creating a
 %   new red-black tree NewTree. Fails if Key is a key in Tree.
 rb_insert_new(T1,K,V,T2) :- 
-   rb_apply_or_create(T1,K,fail2,=(V),T2).
+   rb_update_or_insert(T1,K,insert(V),T2).
 
 %
 % make sure the root is always black.
