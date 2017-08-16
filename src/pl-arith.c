@@ -601,6 +601,7 @@ isCurrentArithFunction(functor_t f)
 int
 check_float(double f)
 {
+#if 0
 #ifdef HAVE_FPCLASSIFY
   switch(fpclassify(f))
   { case FP_NAN:
@@ -653,6 +654,7 @@ check_float(double f)
 #endif /*HAVE__FPCLASS*/
 #endif /*HAVE_FPCLASS*/
 #endif /*HAVE_FPCLASSIFY*/
+#endif
   return TRUE;
 }
 
@@ -1923,7 +1925,7 @@ static int
 ar_log(Number n1, Number r)
 { if ( !promoteToFloatNumber(n1) )
     return FALSE;
-  if ( n1->value.f <= 0.0 )
+  if ( n1->value.f < 0.0 )
     return PL_error("log", 1, NULL, ERR_AR_UNDEF);
   r->value.f = log(n1->value.f);
   r->type    = V_FLOAT;
@@ -1936,7 +1938,7 @@ static int
 ar_log10(Number n1, Number r)
 { if ( !promoteToFloatNumber(n1) )
     return FALSE;
-  if ( n1->value.f <= 0.0 )
+  if ( n1->value.f < 0.0 )
     return PL_error("log10", 1, NULL, ERR_AR_UNDEF);
   r->value.f = log10(n1->value.f);
   r->type    = V_FLOAT;
@@ -2381,8 +2383,8 @@ ar_divide(Number n1, Number n2, Number r)
   if ( !promoteToFloatNumber(n1) ||
        !promoteToFloatNumber(n2) )
     return FALSE;
-  if ( n2->value.f == 0.0 )
-    return PL_error("/", 2, NULL, ERR_DIV_BY_ZERO);
+  /* if ( n2->value.f == 0.0 ) */
+  /*   return PL_error("/", 2, NULL, ERR_DIV_BY_ZERO); */
   r->value.f = n1->value.f / n2->value.f;
   r->type = V_FLOAT;
 
