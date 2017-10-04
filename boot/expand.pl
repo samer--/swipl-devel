@@ -176,6 +176,12 @@ normalise_expansion([T|Ts], Pos, Exp) :-
     maplist(nonvar,[T|Ts]),
     maplist(normalise_term, [T|Ts], Terms),
     maplist(pair, Terms, Pos1, Exp).
+normalise_expansion(L:List, Pos, Exp) :-
+    (List = []; List = [_|_]), !,
+    is_list(List),
+    L = '$source_location'(_,_),
+    normalise_expansion(List, Pos, Exp0),
+    maplist(add_source_location(L), Exp0, Exp).
 normalise_expansion(Term, Pos, [Term1-Pos]) :-
     normalise_term(Term, Term1).
 
