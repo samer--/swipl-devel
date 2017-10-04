@@ -176,24 +176,29 @@ normalise_expansion([T|Ts], Pos, Exp) :-
     maplist(nonvar,[T|Ts]),
     maplist(normalise_term, [T|Ts], Terms),
     maplist(pair, Terms, Pos1, Exp).
-normalise_expansion(L:List, Pos, Exp) :-
-    (List = []; List = [_|_]), !,
-    is_list(List),
+normalise_expansion(L:Terms, Pos, Exp) :-
+    nonvar(Terms),
+    (Terms = []; Terms = [_|_]), !,
+    is_list(Terms),
+    nonvar(L),
     L = '$source_location'(_,_),
-    normalise_expansion(List, Pos, Exp0),
+    normalise_expansion(Terms, Pos, Exp0),
     maplist(add_source_location(L), Exp0, Exp).
 normalise_expansion(Term, Pos, [Term1-Pos]) :-
     normalise_term(Term, Term1).
 
 normalise_term(end_of_file, end_of_file) :- !.
-normalise_term((?- Dir), (:- Dir)) :- !, nonvar(Dir). % NB convert to :-
-normalise_term((:- Dir), (:- Dir)) :- !, nonvar(Dir).
-normalise_term(L:QClause, L:QClause) :-
+normalise_term(L:Term1, L:Term2) :-
     nonvar(L),
     L = '$source_location'(_,_), !,
-    valid_qclause(QClause).
-normalise_term(QClause, QClause) :-
-    valid_qclause(QClause).
+    nonvar(Term1),
+    normalise_dir_or_qclause(Term1, Term2).
+normalise_term(Term1, Term2) :-
+    normalise_dir_or_qclause(Term1, Term2).
+
+normalise_dir_or_qclause((?- Dir), (:- Dir)) :- !, nonvar(Dir). % convert ?- to :-
+normalise_dir_or_qclause((:- Dir), (:- Dir)) :- !, nonvar(Dir).
+normalise_dir_or_qclause(QClause, QClause)   :- valid_qclause(QClause).
 
 valid_qclause(QClause) :-
     (   QClause = M:Clause
@@ -219,16 +224,17 @@ map_term(MapDir, MapClause, Term1-Pos1, Term2-Pos2) :-
     map_term(Term1, Term2, Pos1, Pos2, MapDir-MapClause).
 
 map_term(end_of_file, end_of_file, Pos, Pos, _) :- !.
-map_term((:- Dir1), (:- Dir2), Pos1, Pos2, MapDir-_) :-
+map_term(L:X1, L:X2, Pos1, Pos2, Mappers) :-
+    L = '$source_location'(_, _), !,
+    map_dir_or_qclause(X1, X2, Pos1, Pos2, Mappers).
+map_term(X1, X2, Pos1, Pos2, Mappers) :-
+    map_dir_or_qclause(X1, X2, Pos1, Pos2, Mappers).
+
+map_dir_or_qclause((:- Dir1), (:- Dir2), Pos1, Pos2, MapDir-_) :-
     !,
     f1_pos(Pos1, DPos1, Pos2, DPos2),
     call(MapDir, Dir1-DPos1, Dir2-DPos2).
-
-map_term(L:QC1, L:QC2, Pos1, Pos2, _-MapClause) :-
-    L = '$source_location'(_, _),
-    !,
-    call(MapClause, QC1, QC2, Pos1, Pos2).
-map_term(QC1, QC2, Pos1, Pos2, _-MapClause) :-
+map_dir_or_qclause(QC1, QC2, Pos1, Pos2, _-MapClause) :-
     call(MapClause, QC1, QC2, Pos1, Pos2).
 
 % structural recursion on q(A) type (see notes.txt)
